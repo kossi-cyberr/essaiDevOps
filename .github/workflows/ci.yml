@@ -5,6 +5,13 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  # Permet de reconstruire l'image frontend avec une autre URL d'API (déploiement Railway, etc.)
+  workflow_dispatch:
+    inputs:
+      next_public_api_url:
+        description: "URL publique de l'API inlinée dans l'image frontend (ex: https://api-xxx.up.railway.app/api)"
+        required: false
+        default: ""
 
 jobs:
   build:
@@ -39,11 +46,14 @@ jobs:
           npm run build
 
       # Le préfixe -p fixe les noms d'images : taskly-backend / taskly-frontend
+      # NEXT_PUBLIC_API_URL est inliné au build : vide en push classique, fourni en workflow_dispatch
       - name: Build Docker images
+        env:
+          NEXT_PUBLIC_API_URL: ${{ github.event.inputs.next_public_api_url }}
         run: docker compose -p taskly build
 
       - name: Push images to Docker Hub
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}

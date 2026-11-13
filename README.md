@@ -14,6 +14,7 @@ Chaque utilisateur dispose de son propre espace : il ne voit et ne modifie que s
 - [Structure du projet](#structure-du-projet)
 - [Prérequis](#prérequis)
 - [Lancement en local](#lancement-en-local)
+- [Déploiement sur Railway (images Docker Hub)](#déploiement-sur-railway-images-docker-hub)
 - [Variables d'environnement](#variables-denvironnement)
 - [API REST](#api-rest)
 - [Modèle de données](#modèle-de-données)
@@ -176,13 +177,57 @@ java -jar target/todo-api-1.0.0.jar
 cd frontend && npm run build && npm start
 ```
 
+## Déploiement sur Railway (images Docker Hub)
+
+La CI publie les deux images sur Docker Hub ; Railway les déploie telles quelles, sans reconstruire
+le dépôt. Trois services dans le même projet Railway, dans cet ordre.
+
+### 1. Base de données
+
+`New` → `Database` → **PostgreSQL**. Railway crée `DATABASE_URL`, `PGUSER`, `PGPASSWORD`, `PGHOST`, `PGPORT`, `PGDATABASE`.
+
+### 2. Backend
+
+`New` → `Docker Image` → `bertindev237/taskly-backend:latest`, puis `Settings` → `Networking` → **Generate Domain**.
+
+Variables à définir dans le service :
+
+| Variable | Valeur |
+| --- | --- |
+| `DB_URL` | `jdbc:postgresql://${{Postgres.PGHOST}}:${{Postgres.PGPORT}}/${{Postgres.PGDATABASE}}` |
+| `DB_USERNAME` | `${{Postgres.PGUSER}}` |
+| `DB_PASSWORD` | `${{Postgres.PGPASSWORD}}` |
+| `JWT_SECRET` | une chaîne aléatoire de 32 caractères minimum |
+| `CORS_ALLOWED_ORIGINS` | l'URL publique du frontend, ex. `https://taskly-frontend.up.railway.app` |
+
+> Railway fournit `DATABASE_URL` sous la forme `postgresql://…` : l'API attend une URL **JDBC**,
+d'où le préfixe `jdbc:` à ajouter manuellement. Le port d'écoute est lu depuis la variable `PORT`
+injectée par Railway (voir `server.port` dans `application.yml`) — rien à configurer de ce côté.
+
+### 3. Frontend
+
+`New` → `Docker Image` → `bertindev237/taskly-frontend:latest`, puis `Networking` → **Generate Domain**.
+
+`NEXT_PUBLIC_API_URL` est **inliné à la compilation** : la modifier en variable Railway n'a aucun effet
+sur l'image `latest` (qui vaut `http://localhost:8080/api`). Il faut reconstruire l'image avec la bonne URL :
+
+1. GitHub → onglet **Actions** → workflow **CI - Todo App** → `Run workflow` → renseigner
+   `next_public_api_url` = `https://<domaine-du-backend>/api`.
+2. Une fois le job vert, Railway redéploie le service frontend (menu `Deployments` → `Redeploy`)
+   pour récupérer le nouveau `latest`.
+
+Enfin, remettre l'URL du frontend dans `CORS_ALLOWED_ORIGINS` côté backend et redéployer, sinon le
+navigateur bloquera les appels à l'API.
+
+---
+
 ## Variables d'environnement
 
 ### Backend (`application.yml`, surchargeables par variables d'environnement)
 
 | Variable               | Défaut                                                    | Description                                   |
 | ---------------------- | --------------------------------------------------------- | --------------------------------------------- |
-| `SERVER_PORT`          | `8080`                                                    | Port de l'API                                 |
+| `PORT` / `SERVER_PORT` | `8080`                                                    | Port de l'API (`PORT` prioritaire si défini)  |
 | `DB_URL`               | `jdbc:postgresql://localhost:5432/todo_db`                | URL JDBC PostgreSQL                           |
 | `DB_USERNAME`          | `todo_user`                                               | Utilisateur de la base                        |
 | `DB_PASSWORD`          | `todo_pass`                                               | Mot de passe de la base                       |
