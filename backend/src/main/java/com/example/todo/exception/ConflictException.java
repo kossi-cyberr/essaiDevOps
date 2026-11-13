@@ -1,0 +1,11 @@
+package com.example.todo.exception;
+
+/**
+ * Conflit métier, par exemple un email déjà utilisé (409).
+ */
+public class ConflictException extends RuntimeException {
+
+    public ConflictException(String message) {
+        super(message);
+    }
+}

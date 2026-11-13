@@ -1,0 +1,25 @@
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Backend (Java / Maven)
+backend/target/
+*.class
+*.log
+
+# Frontend (Node / Next.js)
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/next-env.d.ts
+frontend/*.tsbuildinfo
+
+# Environnement
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
